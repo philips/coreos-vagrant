@@ -17,19 +17,24 @@ module VagrantPlugins
 
 		def self.configure_networks(machine, networks)
 		  machine.communicate.tap do |comm|
-			# Read network interface names
+
+            # Read network interface names
 			interfaces = []
 			comm.sudo("ifconfig | grep enp0 | cut -f1 -d:") do |_, result|
-			  interfaces = result.split("\n")
+				interfaces = result.split("\n")
 			end
 
 			# Configure interfaces
 			# FIXME: fix matching of interfaces with IP adresses
 			networks.each do |network|
-			  comm.sudo("ifconfig #{interfaces[network[:interface].to_i]} #{network[:ip]} netmask #{network[:netmask]}")
+				comm.sudo("ifconfig #{interfaces[network[:interface].to_i]} #{network[:ip]} netmask #{network[:netmask]}")
+				comm.sudo("sed -i -e '/^COREOS_PUBLIC_IPV4=/d' -e '/^COREOS_PRIVATE_IPV4=/d' '/etc/environment'")
+				comm.sudo("echo 'COREOS_PUBLIC_IPV4=#{network[:ip]}' >> /etc/environment")
+				comm.sudo("echo 'COREOS_PRIVATE_IPV4=#{network[:ip]}' >> /etc/environment")
 			end
 
 		  end
+
 		end
 	  end
 
