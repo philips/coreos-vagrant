@@ -7,6 +7,27 @@ NUM_INSTANCES = 1
 
 CLOUD_CONFIG_PATH = "./user-data"
 
+$script = <<SCRIPT
+mkdir -p /var/lib/coreos
+mv /tmp/user-data /var/lib/coreos/user-data
+cat << "EOF" > /run/systemd/system/vagrant-coreos-cloudinit.service
+[Unit]
+Description=Run cloudinit using Vagrant user-data
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/coreos-cloudinit --from-file /var/lib/coreos/user-data
+[Install]
+WantedBy=multi-user.target
+EOF
+
+mkdir -p /etc/systemd/system
+cp -Ra /run/systemd/system/vagrant-coreos-cloudinit.service /etc/systemd/system/vagrant-coreos-cloudinit.service
+systemctl enable /etc/systemd/system/vagrant-coreos-cloudinit.service
+
+systemctl daemon-reload
+systemctl start vagrant-coreos-cloudinit.service
+SCRIPT
+
 Vagrant.configure("2") do |config|
   config.vm.box = "coreos-alpha"
   config.vm.box_url = "http://storage.core-os.net/coreos/amd64-usr/alpha/coreos_production_vagrant.box"
@@ -38,7 +59,7 @@ Vagrant.configure("2") do |config|
 
       if File.exist?(CLOUD_CONFIG_PATH)
         config.vm.provision :file, :source => "#{CLOUD_CONFIG_PATH}", :destination => "/tmp/user-data"
-        config.vm.provision :shell, :inline => "/usr/bin/coreos-cloudinit --from-file /tmp/user-data", :privileged => true
+        config.vm.provision :shell, :inline => $script, :privileged => true
       end
 
     end
